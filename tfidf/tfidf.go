@@ -1,126 +1,145 @@
 package tfidf
 
 import (
-	"crypto/md5"
-	"encoding/hex"
+	"fmt"
+	"math"
+	"sort"
+	"strings"
 	"tfidf-test/lexer"
-	"tfidf-test/util"
 )
 
 type TFIDF struct {
-	docIndex  map[string]int         // train document index in TermFreqs
-	termFreqs []map[string]int       // term frequency for each train document
-	termDocs  map[string]int         // documents number for each term in train data
-	n         int                    // number of documents in train data
-	stopWords map[string]interface{} // words to be filtered
-	tokenizer lexer.Tokenizer        // tokenizer, space is used as default
+	docIndex  map[string]int
+	termFreqs []map[string]int
+	termDocs  map[string]int
+	n         int
+	tokenizer lexer.Tokenizer
+	stopWords map[string]struct{}
+	data      []map[string]interface{}
 }
 
 func New() *TFIDF {
 	return &TFIDF{
 		docIndex:  make(map[string]int),
-		termFreqs: make([]map[string]int, 0),
 		termDocs:  make(map[string]int),
 		n:         0,
 		tokenizer: &lexer.EnTokenizer{},
+		stopWords: make(map[string]struct{}),
 	}
 }
 
-// NewTokenizer new with specified tokenizer
-func NewTokenizer(tokenizer lexer.Tokenizer) *TFIDF {
-	return &TFIDF{
-		docIndex:  make(map[string]int),
-		termFreqs: make([]map[string]int, 0),
-		termDocs:  make(map[string]int),
-		n:         0,
-		tokenizer: tokenizer,
-	}
-}
-
-func (f *TFIDF) PrintFreq() {
-	for _, value := range f.termFreqs {
-		for o, a := range value {
-			println(o, ":", a)
-		}
-	}
-	// index := f.docHashPos("778a2407471e2afc2bf9459df37eb13a")
-
-}
-
-func (f *TFIDF) AddStopWords(words ...string) {
-	if f.stopWords == nil {
-		f.stopWords = make(map[string]interface{})
-	}
-
-	for _, word := range words {
-		f.stopWords[word] = nil
-	}
-}
-
-// AddStopWordsFile add stop words file to be filtered, with one word a line
-func (f *TFIDF) AddStopWordsFile(file string) (err error) {
-	lines, err := util.ReadLines(file)
-	if err != nil {
-		return
-	}
-
-	f.AddStopWords(lines...)
-	return
-}
-
-// AddDocs add train documents
-func (f *TFIDF) AddDocs(docs ...string) {
-	for _, doc := range docs {
-		h := hash(doc)
-		if f.docHashPos(h) >= 0 {
-			return
-		}
-
-		termFreq := f.termFreq(doc)
-		if len(termFreq) == 0 {
-			return
-		}
-
-		f.docIndex[h] = f.n
-		f.n++
-
-		f.termFreqs = append(f.termFreqs, termFreq)
-
-		for term := range termFreq {
-			f.termDocs[term]++
+func (t *TFIDF) PrintDocsWithTermFreqs() {
+	for key, value := range t.docIndex {
+		fmt.Printf("%s:\n", key)
+		docfreqs := t.termFreqs[value]
+		for term, freq := range docfreqs {
+			fmt.Printf("\t%s: %d\n", term, freq)
 		}
 	}
 }
 
-func (f *TFIDF) termFreq(doc string) (m map[string]int) {
-	m = make(map[string]int)
-
-	tokens := f.tokenizer.Tokenize(doc)
-	if len(tokens) == 0 {
-		return
+func jsonObjToString(data map[string]interface{}) (result string) {
+	for _, value := range data {
+		if str, ok := value.(string); ok {
+			result += str + " "
+		}
 	}
 
-	for _, term := range tokens {
-		if _, ok := f.stopWords[term]; ok {
+	return result
+}
+
+func (t *TFIDF) AddDocs(docs []map[string]interface{}) {
+	if t.termFreqs == nil {
+		t.termFreqs = make([]map[string]int, len(docs))
+	}
+	if t.data == nil {
+		t.data = make([]map[string]interface{}, len(docs))
+	}
+	for i, doc := range docs {
+		id, ok := doc["id"].(string)
+		if !ok {
+			println("Id not provided for this document")
+			continue
+		}
+		text := jsonObjToString(doc)
+
+		tokens := t.tokenizer.Tokenize(text)
+		freqs := make(map[string]int)
+		for _, token := range tokens {
+			if _, ok := t.stopWords[token]; ok {
+				continue
+			}
+			term := strings.ToLower(token)
+			freqs[term]++
+			if freqs[term] == 1 {
+				t.termDocs[term]++
+			}
+		}
+		t.termFreqs[i] = freqs
+		t.docIndex[id] = i
+		t.n++
+		t.data[i] = doc
+	}
+}
+
+func (t *TFIDF) docFreq(term string) float64 {
+	df := t.termDocs[term]
+	return math.Log(float64(t.n) / float64(df))
+}
+
+func (t *TFIDF) termFreq(doc string, term string) float64 {
+	id := t.docIndex[doc]
+	docFreqs := t.termFreqs[id]
+	tf := float64(docFreqs[term]) / float64(len(docFreqs))
+	return tf
+}
+
+func (t *TFIDF) CalculateTFIDF(query string) []struct {
+	ID   string
+	Rank float64
+} {
+	tfidf := make(map[string]float64)
+
+	tokens := t.tokenizer.Tokenize(query)
+
+	for _, token := range tokens {
+		if _, ok := t.stopWords[token]; ok {
 			continue
 		}
 
-		m[term]++
+		term := strings.ToLower(token)
+
+		for id, value := range t.docIndex {
+			docFreqs := t.termFreqs[value]
+
+			if _, ok := docFreqs[term]; ok {
+				tf := t.termFreq(id, term)
+				idf := t.docFreq(term)
+				total := tf * idf
+				tfidf[id] = total
+			}
+		}
 	}
 
-	return
-}
-
-func (f *TFIDF) docHashPos(hash string) int {
-	if pos, ok := f.docIndex[hash]; ok {
-		return pos
+	// Convert map to slice
+	var tfidfSlice []struct {
+		ID   string
+		Rank float64
+	}
+	for id, rank := range tfidf {
+		tfidfSlice = append(tfidfSlice, struct {
+			ID   string
+			Rank float64
+		}{
+			ID:   id,
+			Rank: rank,
+		})
 	}
 
-	return -1
-}
+	// Sort slice by rank in descending order
+	sort.Slice(tfidfSlice, func(i, j int) bool {
+		return tfidfSlice[i].Rank > tfidfSlice[j].Rank
+	})
 
-func hash(text string) string {
-	h := md5.New()
-	h.Write([]byte(text))
-	return hex.EncodeToString(h.Sum(nil))
+	return tfidfSlice
 }

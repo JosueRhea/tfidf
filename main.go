@@ -3,17 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
+	"tfidf-test/tfidf"
 	"tfidf-test/util"
 
 	"github.com/goccy/go-json"
 )
-
-type json_type struct {
-	Title       string
-	Description string
-	Data        string
-	Id          string
-}
 
 func main() {
 	// f := tfidf.New()
@@ -28,8 +22,14 @@ func main() {
 
 	// myJsonString := `{{"some":1}}`
 
-	var parsedData []json_type
+	var parsedData []map[string]interface{}
 
 	json.Unmarshal([]byte(fileContent), &parsedData)
-	fmt.Println(parsedData[2].Data)
+	t := tfidf.New()
+	t.AddDocs(parsedData)
+	// t.PrintDocsWithTermFreqs()
+	search := t.CalculateTFIDF("resultado")
+	for _, value := range search {
+		fmt.Printf("id: %s -> %f\n", value.ID, value.Rank)
+	}
 }
