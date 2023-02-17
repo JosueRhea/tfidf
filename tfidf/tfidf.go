@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"tfidf-test/lexer"
+	"tfidf-test/util"
 )
 
 type TFIDF struct {
@@ -14,7 +15,7 @@ type TFIDF struct {
 	termDocs  map[string]int
 	n         int
 	tokenizer lexer.Tokenizer
-	stopWords map[string]struct{}
+	stopWords map[string]interface{}
 	data      []map[string]interface{}
 }
 
@@ -24,8 +25,28 @@ func New() *TFIDF {
 		termDocs:  make(map[string]int),
 		n:         0,
 		tokenizer: &lexer.EnTokenizer{},
-		stopWords: make(map[string]struct{}),
+		stopWords: make(map[string]interface{}),
 	}
+}
+
+func (t *TFIDF) AddStopWords(words ...string) {
+	if t.stopWords == nil {
+		t.stopWords = make(map[string]interface{})
+	}
+
+	for _, word := range words {
+		t.stopWords[word] = nil
+	}
+}
+
+func (t *TFIDF) AddStopWordsFile(file string) (err error) {
+	lines, err := util.ReadLines(file)
+	if err != nil {
+		return
+	}
+
+	t.AddStopWords(lines...)
+	return
 }
 
 func (t *TFIDF) PrintDocsWithTermFreqs() {
@@ -93,11 +114,14 @@ func (t *TFIDF) termFreq(doc string, term string) float64 {
 	return tf
 }
 
-func (t *TFIDF) CalculateTFIDF(query string) []struct {
+type TFIDFResult struct {
 	ID   string
 	Rank float64
-} {
-	tfidf := make(map[string]float64)
+	Data map[string]interface{}
+}
+
+func (t *TFIDF) CalculateTFIDF(query string) []TFIDFResult {
+	var result []TFIDFResult
 
 	tokens := t.tokenizer.Tokenize(query)
 
@@ -115,30 +139,15 @@ func (t *TFIDF) CalculateTFIDF(query string) []struct {
 				tf := t.termFreq(id, term)
 				idf := t.docFreq(term)
 				total := tf * idf
-				tfidf[id] = total
+				result = append(result, TFIDFResult{ID: id, Rank: total, Data: t.data[value]})
 			}
 		}
 	}
 
-	// Convert map to slice
-	var tfidfSlice []struct {
-		ID   string
-		Rank float64
-	}
-	for id, rank := range tfidf {
-		tfidfSlice = append(tfidfSlice, struct {
-			ID   string
-			Rank float64
-		}{
-			ID:   id,
-			Rank: rank,
-		})
-	}
-
 	// Sort slice by rank in descending order
-	sort.Slice(tfidfSlice, func(i, j int) bool {
-		return tfidfSlice[i].Rank > tfidfSlice[j].Rank
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Rank > result[j].Rank
 	})
 
-	return tfidfSlice
+	return result
 }
