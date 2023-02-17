@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	fileContent, err := util.ReadFileToString("data.json")
+	fileContent, err := util.ReadFileToString("test-data.json")
 	if err != nil {
 		log.Fatal("Error reading the file", err)
 	}
@@ -35,7 +35,9 @@ func main() {
 		}
 	}
 	t.AddStopWordsFile("stopwords-es.txt")
-	search := t.CalculateTFIDF("podemos")
+	// t.PrintDocsWithTermFreqs()
+	search := t.CalculateTFIDF("marvel")
+	fmt.Println(len(search))
 	for _, value := range search {
 		fmt.Printf("id: %s -> %f\n", value.ID, value.Rank)
 		fmt.Printf("value.Data: %v\n", value.Data["description"])

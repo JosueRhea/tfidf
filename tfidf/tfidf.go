@@ -59,10 +59,19 @@ func (t *TFIDF) PrintDocsWithTermFreqs() {
 	}
 }
 
-func jsonObjToString(data map[string]interface{}) (result string) {
+func jsonObjToString(data map[string]interface{}) string {
+	var result string
+
 	for _, value := range data {
-		if str, ok := value.(string); ok {
-			result += str + " "
+		switch v := value.(type) {
+		case string:
+			result += v + " "
+		case []interface{}:
+			for _, elem := range v {
+				if str, ok := elem.(string); ok {
+					result += str + " "
+				}
+			}
 		}
 	}
 
