@@ -1,4 +1,4 @@
-module tfidf
+module github.com/JosueRhea/tfidf
 
 go 1.20
 
