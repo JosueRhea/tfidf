@@ -2,6 +2,9 @@ package lexer
 
 import (
 	"strings"
+	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 type Tokenizer interface {
@@ -9,6 +12,22 @@ type Tokenizer interface {
 }
 
 type EnTokenizer struct {
+}
+
+func removeAccents(s string) string {
+	// Convert to NFD
+	nfd := norm.NFD.String(s)
+
+	// Filter out combining marks (accents)
+	var sb strings.Builder
+	for _, r := range nfd {
+		if unicode.Is(unicode.Mn, r) {
+			continue
+		}
+		sb.WriteRune(r)
+	}
+
+	return sb.String()
 }
 
 func (s *EnTokenizer) Tokenize(text string) []string {
@@ -26,7 +45,8 @@ func (s *EnTokenizer) Tokenize(text string) []string {
 	result := make([]string, 0, len(words))
 	for _, word := range words {
 		if word != "" {
-			result = append(result, word)
+			normalized := removeAccents(word)
+			result = append(result, normalized)
 		}
 	}
 

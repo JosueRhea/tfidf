@@ -28,7 +28,7 @@ func main() {
 	t := tfidf.New()
 	t.AddDocs(parsedData)
 	// t.PrintDocsWithTermFreqs()
-	search := t.CalculateTFIDF("resultado")
+	search := t.CalculateTFIDF("fraccion")
 	for _, value := range search {
 		fmt.Printf("id: %s -> %f\n", value.ID, value.Rank)
 	}
