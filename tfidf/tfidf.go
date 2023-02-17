@@ -5,8 +5,8 @@ import (
 	"math"
 	"sort"
 	"strings"
-	"tfidf-test/lexer"
-	"tfidf-test/util"
+	"tfidf/lexer"
+	"tfidf/util"
 )
 
 type TFIDF struct {
