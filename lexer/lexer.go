@@ -45,7 +45,8 @@ func (s *EnTokenizer) Tokenize(text string) []string {
 	result := make([]string, 0, len(words))
 	for _, word := range words {
 		if word != "" {
-			normalized := removeAccents(word)
+			lowered := strings.ToLower(word)
+			normalized := removeAccents(lowered)
 			result = append(result, normalized)
 		}
 	}

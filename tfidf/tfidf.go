@@ -69,10 +69,9 @@ func (t *TFIDF) AddDocs(docs []map[string]interface{}) {
 			if _, ok := t.stopWords[token]; ok {
 				continue
 			}
-			term := strings.ToLower(token)
-			freqs[term]++
-			if freqs[term] == 1 {
-				t.termDocs[term]++
+			freqs[token]++
+			if freqs[token] == 1 {
+				t.termDocs[token]++
 			}
 		}
 		t.termFreqs[i] = freqs
