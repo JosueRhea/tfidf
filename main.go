@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"tfidf/tfidf"
-	"tfidf/util"
+	"tfidf-test/tfidf"
+	"tfidf-test/util"
 
 	"github.com/goccy/go-json"
 )
